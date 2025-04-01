@@ -12,7 +12,7 @@ const { RedisStore } = require('rate-limit-redis')
 
 const app = express();
 
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3003;
 
 mongoose.connect(process.env.MONGODB_URI).then(() => {
     logger.info("Database Connected in Post Service...");

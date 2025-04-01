@@ -1,3 +1,4 @@
+const Media = require("../../../media-service/src/models/Media")
 const Post = require("../models/post")
 const logger = require("../utils/logger")
 const { validationPost } = require("../utils/validation")
@@ -59,11 +60,24 @@ const getAllPosts = async (req, res) => {
         }
 
         const posts = await Post.find({}).skip(startingIndex).limit(limit).sort({ createdAt: -1 })
+        const media = await Media.findById("67ebc2e6603a56feac835fdf")
+        console.log({ media })
+        let allPosts;
+        for (const post of posts) {
+            allPosts = { post };
+            if (post.mediaIds.length > 0) {
+                for (const mediaId of post.mediaIds) {
+                    console.log(mediaId)
+                    const mediaData = await Media.findById(mediaId)
+                    allPosts.media = mediaData
+                }
+            }
+        }
 
         const totalNoOfPosts = await Post.countDocuments()
 
         const result = {
-            posts,
+            posts: allPosts,
             totalPosts: totalNoOfPosts,
             currentPage: page,
             totalPages: Math.ceil(totalNoOfPosts / limit)
