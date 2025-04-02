@@ -8,7 +8,8 @@ const postRoutes = require("./routes/post-routes");
 const errorHandler = require("./middlewares/errorHandler");
 const Redis = require('ioredis')
 const { rateLimit } = require('express-rate-limit')
-const { RedisStore } = require('rate-limit-redis')
+const { RedisStore } = require('rate-limit-redis');
+const { connectRabbitMQ } = require("./utils/rabbitmq");
 
 const app = express();
 
@@ -59,9 +60,19 @@ app.use('/api/posts', ipRateLimiter, (req, res, next) => {
 
 app.use(errorHandler)
 
-app.listen(PORT, () => {
-    logger.info('POST Service listening on Port ', PORT)
-})
+async function startServer() {
+    try {
+        await connectRabbitMQ()
+        app.listen(PORT, () => {
+            logger.info('POST Service listening on Port ', PORT)
+        })
+    } catch (error) {
+        logger.error(error.message)
+        process.exit(1)
+    }
+}
+
+startServer()
 
 // unhandled promise rejection
 process.on("unhandledRejection", (reason, promise) => {

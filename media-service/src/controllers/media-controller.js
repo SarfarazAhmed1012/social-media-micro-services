@@ -44,4 +44,22 @@ const uploadMedia = async (req, res) => {
     }
 }
 
-module.exports = { uploadMedia }
+const getAllMedia = async (req, res) => {
+    logger.info("getAllMedia called")
+
+    try {
+        const media = await Media.find()
+
+        res.status(200).send({
+            success: true,
+            media,
+            message: "Media fetched successfully"
+        })
+    }
+    catch (error) {
+        logger.error(error.message)
+        return res.status(500).json({ success: false, message: 'internal server error' })
+    }
+}
+
+module.exports = { uploadMedia, getAllMedia }

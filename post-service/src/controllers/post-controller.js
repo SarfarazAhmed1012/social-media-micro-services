@@ -1,6 +1,6 @@
-const Media = require("../../../media-service/src/models/Media")
 const Post = require("../models/post")
 const logger = require("../utils/logger")
+const { publishEvent } = require("../utils/rabbitmq")
 const { validationPost } = require("../utils/validation")
 
 async function invalidatePostCache(req, input) {
@@ -60,20 +60,6 @@ const getAllPosts = async (req, res) => {
         }
 
         const posts = await Post.find({}).skip(startingIndex).limit(limit).sort({ createdAt: -1 })
-        const media = await Media.findById("67ebc2e6603a56feac835fdf")
-        console.log({ media })
-        let allPosts;
-        for (const post of posts) {
-            allPosts = { post };
-            if (post.mediaIds.length > 0) {
-                for (const mediaId of post.mediaIds) {
-                    console.log(mediaId)
-                    const mediaData = await Media.findById(mediaId)
-                    allPosts.media = mediaData
-                }
-            }
-        }
-
         const totalNoOfPosts = await Post.countDocuments()
 
         const result = {
@@ -145,6 +131,13 @@ const deletePost = async (req, res) => {
         await invalidatePostCache(req, id)
 
         res.status(200).json({ success: true, message: 'post deleted successfully', post: deletedPost })
+
+        // publish post delete method event to media service using rabbitmq
+        await publishEvent('post.deleted', {
+            postId: id,
+            userId: req.user.userId,
+            mediaIds: deletedPost.mediaIds
+        })
 
     } catch (error) {
         logger.error(error.message)
