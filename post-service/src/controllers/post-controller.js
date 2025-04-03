@@ -15,6 +15,17 @@ async function invalidatePostCache(req, input) {
     }
 }
 
+async function invalidateSearchCache(req, input) {
+    const cacheKey = `search:${input}`
+    await req.redisClient.del(cacheKey)
+
+    const keys = await req.redisClient.keys('search:*')
+
+    if (keys.length > 0) {
+        await req.redisClient.del(keys)
+    }
+}
+
 const createPost = async (req, res) => {
     logger.info('create post endpoint hit')
 
@@ -34,7 +45,15 @@ const createPost = async (req, res) => {
 
         await newlyCreatedPost.save()
 
+        // publish post delete method event to media service using rabbitmq
+        await publishEvent('post.created', {
+            postId: newlyCreatedPost._id,
+            userId: req.user.userId,
+            content
+        })
+
         await invalidatePostCache(req, newlyCreatedPost._id.toString())
+        await invalidateSearchCache(req, content)
 
         return res.status(201).json({ success: true, message: 'post created successfully', post: newlyCreatedPost })
 
@@ -63,7 +82,7 @@ const getAllPosts = async (req, res) => {
         const totalNoOfPosts = await Post.countDocuments()
 
         const result = {
-            posts: allPosts,
+            posts: posts,
             totalPosts: totalNoOfPosts,
             currentPage: page,
             totalPages: Math.ceil(totalNoOfPosts / limit)
@@ -129,6 +148,7 @@ const deletePost = async (req, res) => {
         }
 
         await invalidatePostCache(req, id)
+        await invalidateSearchCache(req, deletedPost.content)
 
         res.status(200).json({ success: true, message: 'post deleted successfully', post: deletedPost })
 

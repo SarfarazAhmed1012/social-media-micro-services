@@ -55,7 +55,7 @@ const proxyOptions = {
     }
 }
 
-//setting up the proxy for api-gateway
+//setting up the proxy for identity service
 app.use('/v1/auth', proxy(process.env.IDENTITY_SERVICE_URL, {
     ...proxyOptions,
     proxyReqOptDecorator: (proxyReqOpts, srcReq) => {
@@ -101,6 +101,24 @@ app.use('/v1/media', validateToken, proxy(process.env.MEDIA_SERVICE_URL, {
 
 }))
 
+//setting up the proxy for search service
+app.use('/v1/search', validateToken, proxy(process.env.SEARCH_SERVICE_URL, {
+    ...proxyOptions,
+    proxyReqOptDecorator: (proxyReqOpts, srcReq) => {
+        proxyReqOpts.headers["x-user-id"] = srcReq.user.userId
+        if (!srcReq.headers['content-type'].startsWith('multipart/form-data')) {
+            proxyReqOpts.headers["Content-Type"] = "application/json";
+        }
+        return proxyReqOpts;
+    },
+    userResDecorator: (proxyRes, proxyResData, userReq, userRes) => {
+        logger.info(`Response received from Search Service: ${proxyRes.statusCode}`)
+        return proxyResData
+    },
+    parseReqBody: false
+
+}))
+
 app.use(errorHandler)
 
 app.listen(PORT, () => {
@@ -108,5 +126,6 @@ app.listen(PORT, () => {
     logger.info(`Identity Service URL: ${process.env.IDENTITY_SERVICE_URL}`)
     logger.info(`Post Service URL: ${process.env.POST_SERVICE_URL}`)
     logger.info(`Media Service URL: ${process.env.MEDIA_SERVICE_URL}`)
+    logger.info(`Search Service URL: ${process.env.SEARCH_SERVICE_URL}`)
     logger.info(`Redis URL ${process.env.REDIS_URL}`)
 })
